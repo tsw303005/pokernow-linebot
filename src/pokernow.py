@@ -2,15 +2,36 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
+import os
+import pickle
 
 class Pokernow(object):
     
     def __init__(self):
         self.__service = Service(executable_path="C:/chromedriver")
         self.__options = webdriver.ChromeOptions()
-        self.__options.add_argument('headless')
-        self.__pokernowURL = 'https://www.pokernow.club/'
+        # self.__options.add_argument('headless')
+        self.__pokernowURL = 'https://www.pokernow.club/start-game'
+        
+    def __waitForOwner(self, url):
+        with webdriver.Chrome(service=self.__service, options=self.__options) as driver:
+            driver.get(url)
+            cookies = pickle.load(open("./cookies.pkl", "rb"))
+            for cookie in cookies:
+                driver.add_cookie(cookie)
+
+            driver.implicitly_wait(2)
+            driver.find_element(By.XPATH, '/html/body/div/div/div[1]/div/div[2]/button').click()
+            element = WebDriverWait(driver, 200).until(
+                EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/div/div[1]/div[2]/div[2]/div[2]/div/button'))
+            )
+            element.click()
+            driver.find_element(By.XPATH, '/html/body/div[1]/div/div[1]/div[2]/div[2]/div/div/button').click()
+            driver.find_element(By.XPATH, '/html/body/div[1]/div/div[1]/div/div[2]/button[1]').click()
+            driver.find_element(By.XPATH, '/html/body/div[1]/div/div[1]/div/div[2]/button').click()
         
     def getScore(self, url):
         with webdriver.Chrome(service=self.__service, options=self.__options) as driver:
@@ -37,17 +58,29 @@ class Pokernow(object):
             
         return scoreboard
     
-    def createNewGame(self, owner):
+    
+    def createNewGame(self):
         with webdriver.Chrome(service=self.__service, options=self.__options) as driver:
             driver.get(self.__pokernowURL)
             driver.implicitly_wait(2)
-            driver.find_element(By.XPATH, '/html/body/div[2]/section/div[1]/div/a').click()
-            driver.find_element(By.XPATH, '/html/body/div[1]/div/div[2]/div/form/div[1]/input').send_keys(owner)
+            driver.find_element(By.XPATH, '/html/body/div[1]/div/div[2]/div/form/div[1]/input').send_keys('rrr')
             driver.implicitly_wait(0.5)
             driver.find_element(By.XPATH, '/html/body/div[1]/div/div[2]/div/form/button').click()
-            sleep(1)   
+            sleep(1)
             url = driver.current_url
+            pickle.dump( driver.get_cookies() , open("./cookies.pkl","wb"))
+    
+        pid = os.fork()
+        if pid != 0:
+            return url
+        else:
+            self.__waitForOwner(url)
 
-        return url
+            
+   
 
+if __name__ == '__main__':
+    p = Pokernow()
+    url = p.createNewGame()
+    print(url)
     
