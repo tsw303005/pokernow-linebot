@@ -6,14 +6,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
 import os
-import pickle
+import json
 
 class Pokernow(object):
     
     def __init__(self):
         self.__service = Service(executable_path="C:/chromedriver")
         self.__options = webdriver.ChromeOptions()
-        # self.__options.add_argument('headless')
+        self.__options.add_argument('headless')
         self.__pokernowURL = 'https://www.pokernow.club/start-game'
         
     def __waitForOwner(self, driver):
@@ -49,7 +49,7 @@ class Pokernow(object):
             net = int(player[len(player)-1].text)
             scoreboard[name] = net
             
-        return scoreboard
+        return json.dumps(scoreboard, indent=2, ensure_ascii=False)
     
     
     def createNewGame(self):
@@ -80,6 +80,7 @@ class Pokernow(object):
             r.close()
          
             return url
+
 
 if __name__ == '__main__':
     p = Pokernow()
