@@ -29,9 +29,13 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    resp = command.makeCommand(event.message.text, line_bot_api,  event)
-
-    if resp != 'return':
+    try:
+        resp = command.makeCommand(event.message.text)
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=resp))
+    except Exception as err:
+        resp = 'something seems wrong, please try again later'
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=resp))

@@ -1,4 +1,11 @@
 .env
+
 .DS_Store
 
 __pycache*
+
+download/
+
+scoreboard.json
+
+member.json
