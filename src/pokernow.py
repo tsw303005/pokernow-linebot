@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
+from src.member import Member
 import requests
 import datetime
 import os
@@ -66,7 +67,7 @@ class Pokernow(object):
         splitResult = url.split('/')
         roomID = splitResult[-1:][0]
         fileURL = f'{url}/ledger_{roomID}.csv'
-        filePath = f'{self.__fileFolder}/ledger_{num}.csv'
+        filePath = f'{self.__fileFolder}/ledgers/{num}.csv'
 
         # get csv file
         for i in range(0, 5):
@@ -87,9 +88,14 @@ class Pokernow(object):
     # check if url exists, then cover the old one
     def __checkURLExist(self, url) -> int:
         filePath = os.path.join(self.__fileFolder, 'url.txt')
+        if not os.path.exists(filePath):
+            f = open(filePath, 'w')
+            f.close()
 
+        # check if the url exists
+        # return game number if exists
         with open(filePath, 'r') as f:
-            for i in f.readline():
+            for i in f.readlines():
                 spl = i.split(' ')
                 if (spl[0] == url):
                     return int(spl[1])
@@ -112,7 +118,8 @@ class Pokernow(object):
         
         # parse the csv file to json
         result = self.__parseCSV(filePath)
-        self.__data[gameNum]['date'] = datetime.date.today()
+        self.__data[gameNum] = dict()
+        self.__data[gameNum]['date'] = datetime.date.today().strftime('%Y/%d/%m')
         self.__data[gameNum]['result'] = result
         
         
@@ -120,8 +127,9 @@ class Pokernow(object):
         with open(f"{os.path.join(self.__fileFolder, 'scoreboard.json')}", 'w') as f:
             jsonStr = json.dumps(self.__data, indent=2, ensure_ascii=False)
             print(jsonStr, file=f)
+
         
-        return self.__data[gameNum]['result']
+        return json.dumps(self.__data[gameNum]['result'], indent=2, ensure_ascii=False)
     
     def settleUp(self, startNum, endNum) -> str:
         if startNum > endNum:
@@ -204,3 +212,4 @@ class Pokernow(object):
 
 if __name__ == '__main__':
     p = Pokernow()
+    p.endGame('https://www.pokernow.club/games/pglXXeL4L06PjQQ73dsnpMXM4')
