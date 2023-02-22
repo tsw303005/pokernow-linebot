@@ -12,21 +12,35 @@ import json
 import csv
 
 class Pokernow(object):
-    def __init__(self):
+    def __init__(self) -> None:
+        # selenium option
         self.__service = Service(executable_path="C:/chromedriver")
         self.__options = webdriver.ChromeOptions()
         self.__options.add_argument('headless')
+
+        # pokernow website
         self.__pokernowURL = 'https://www.pokernow.club/start-game'
-        self.__fileFolder = os.path.join(os.getcwd(), 'download')
-        self.__gameTotal = 0
+        
+        # make sure that download folder exists, ledger and record folder
+        self.__fileFolder = os.path.join(os.getcwd(), 'files')
+        if not os.path.exists(self.__fileFolder):
+            os.makedirs(self.__fileFolder)
+            
+        self.__ledgerFolder = os.path.join(self.__fileFolder, 'ledgers')
+        if not os.path.exists(self.__ledgerFolder):
+            os.makedirs(self.__ledgerFolder)
+            
+        self.__resultFolder = os.path.join(self.__fileFolder, 'results')
+        if not os.path.exists(self.__resultFolder):
+            os.makedirs(self.__resultFolder)
+            
+            
+        # game number and game data
+        self.__num = 0
         self.__data = dict()
+
         
-        with open(f"{os.path.join(os.getcwd(), 'scoreboard.json')}") as f:
-            data = json.load(f)
-            self.__data = data
-            self.__gameTotal = len(data)
-        
-    def __waitForOwner(self, driver):
+    def __waitForOwner(self, driver) -> None:
         # wait for next
         WebDriverWait(driver, 300).until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div/div[1]/div/div[2]/p")))
         
@@ -36,7 +50,8 @@ class Pokernow(object):
         driver.find_element(By.XPATH, '/html/body/div[1]/div/div[1]/div[2]/div[2]/div/div/button').click()
         driver.find_element(By.XPATH, '/html/body/div[1]/div/div[1]/div/div[2]/button[1]').click()
 
-    def __parseCSV(self, filePath):
+    # parse csv to json result, and result players' net
+    def __parseCSV(self, filePath) -> dict:
         result = dict()
         with open(filePath, 'r') as f:
             reader = csv.reader(f)
@@ -46,7 +61,8 @@ class Pokernow(object):
 
         return result
     
-    def __downloadScore(self, url, num):
+    # download the ledger csv file and store it to local
+    def __downloadScore(self, url, num) -> str:
         splitResult = url.split('/')
         roomID = splitResult[-1:][0]
         fileURL = f'{url}/ledger_{roomID}.csv'
@@ -67,24 +83,47 @@ class Pokernow(object):
                 break 
             
         return filePath
-    
-    def settleGame(self, num):
-        if int(num) >= self.__gameTotal:
-            raise Exception('[Error]:  the game number does not exist')
 
-        filePath = self.__downloadScore(self.__data[num]['url'], num)
-        self.__data[num]['filePath'] = filePath
-        self.__data[num]['result'] = self.__parseCSV(filePath)
-        self.__data[num]['ifSettled'] = True
+    # check if url exists, then cover the old one
+    def __checkURLExist(self, url) -> int:
+        filePath = os.path.join(self.__fileFolder, 'url.txt')
+
+        with open(filePath, 'r') as f:
+            for i in f.readline():
+                spl = i.split(' ')
+                if (spl[0] == url):
+                    return int(spl[1])
+        
+        # if the url is a new one, num++
+        with open(filePath, 'a') as f:
+            f.write(f'{url} {self.__num}\n')
+            
+        result = self.__num
+        self.__num += 1
+        return result
+        
+    
+    # download csv file and calculate the result
+    def endGame(self, url) -> dict:
+        gameNum = self.__checkURLExist(url)
+
+        # download the result
+        filePath = self.__downloadScore(url, gameNum)
+        
+        # parse the csv file to json
+        result = self.__parseCSV(filePath)
+        self.__data[gameNum]['date'] = datetime.date.today()
+        self.__data[gameNum]['result'] = result
+        
         
         # write result back to scoreboard
-        with open(f"{os.path.join(os.getcwd(), 'scoreboard.json')}", 'w') as f:
-            jsonStr =  json.dumps(self.__data, indent=2, ensure_ascii=False)
+        with open(f"{os.path.join(self.__fileFolder, 'scoreboard.json')}", 'w') as f:
+            jsonStr = json.dumps(self.__data, indent=2, ensure_ascii=False)
             print(jsonStr, file=f)
         
-        return self.__data[num]['result']
+        return self.__data[gameNum]['result']
     
-    def settleUp(self, startNum, endNum):
+    def settleUp(self, startNum, endNum) -> str:
         if startNum > endNum:
             raise Exception('[Error]: start game number should not be greater than end game number')
         elif endNum > self.__gameTotal:
@@ -95,7 +134,7 @@ class Pokernow(object):
         with open(f"{os.path.join(os.getcwd(), 'member.json')}") as f:
             data = json.load(f)
             
-            for member in data["members"]:
+            for member in data['members']:
                 result[member] = 0
                 members.append(member)
         
@@ -113,7 +152,7 @@ class Pokernow(object):
         return jsonStr
         
 
-    def getScore(self, num):
+    def getScore(self, num) -> str:
        if num >= self.__gameTotal:
            raise Exception('[Error]: the game number does not exist')
        elif not self.__data[num]['ifSettled']:
@@ -126,7 +165,7 @@ class Pokernow(object):
        return jsonStr
        
     
-    def createNewGame(self):
+    def createNewGame(self) -> str:
         r, w = os.pipe()
         pid = os.fork()
         
@@ -163,7 +202,5 @@ class Pokernow(object):
             return url
 
 
-
 if __name__ == '__main__':
     p = Pokernow()
-    print(p.settleUp(0, 8))
