@@ -19,7 +19,7 @@ def callback():
 
     # get request body as text
     body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
+    # app.logger.info("Request body: " + body)
 
     # parse webhook body
     try:
@@ -32,10 +32,14 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     try:
-        resp = command.makeCommand(event.message.text, event.source.user_id)
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=str(resp)))
+        profile = line_bot_api.get_profile(event.source.user_id)
+        message = f'\nuser: {profile.display_name}\nuser_id: {event.source.user_id}\ncommand: {event.message.text}\n'
+        app.logger.info(message)
+        resp = command.makeCommand(event.message.text, event.source.user_id, event.source.group_id)
+        if resp != '':
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=str(resp)))
     except Exception as err:
         line_bot_api.reply_message(
             event.reply_token,
